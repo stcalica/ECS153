@@ -131,23 +131,43 @@ void sniff_check(){
 
 //change ownership of sniff
 void ownership_change(){
-
-	
+  pid_t pid; 
+  int status; 	
   char* ep[] = {"Path= ...", "SHELL=/bin/sh", "SHELL=/bin/bash", "BASH=/bin/bash","IFS=\t\n", NULL};
-  char* av[] = {"chown","root:proj","sniff", NULL};
-  int status = execve("/usr/bin/chown", av, ep);
-  if(status < 0){
-	cerr << "could not change root to owner " << endl;
-	exit(EXIT_FAILURE); 
-  } else {
-	int error = chmod("sniff", S_IXUSR);
-	if(error){
-		cerr << "could not change root permissions on sniff" << endl;
-		exit(EXIT_FAILURE); 
-	}  else {
-		cout << "sniff owner and permissions changed" << endl;
-	} 
-  }
+  char* av[] = {"chown","root:95","sniff", NULL}; //change to proj before turning in
+  switch(pid = fork()){
+    case -1:
+      cerr << "forking chown process failed" << endl;
+      exit(EXIT_FAILURE);
+    case 0: //in the child process
+      status = execve("/usr/bin/chown", av, ep);
+      //status = 0;
+      exit(status); // only happens if execve(2) fails
+    default: //in parent
+       if(waitpid(pid, &status,0) < 0){
+          cerr << "Process failed" << endl;
+          exit(EXIT_FAILURE);
+      } else {
+          //check the status
+           //if status == 0 => properly executed
+          if(!status){
+		int error = chmod("sniff", 04550);
+		if(error){
+			cerr << "could not change permissions for root" << endl;
+			exit(EXIT_FAILURE); 
+		}  else {
+			cout << "sniff owner and permissions changed" << endl;
+            	}
+      
+  	} else {
+			cerr << "chown did not work" << endl;
+			exit(EXIT_FAILURE); 
+		
+	} // end of status check
+	
+    } //end of wait 
+
+  }//end of fork
 
 }//end of ownership 
 
