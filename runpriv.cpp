@@ -27,7 +27,7 @@ int main(void){
   obtain_creds();
   sniff_check();
   ownership_change();
-
+  cout << "runpriv ended " << endl;
   return(1);
 }
 
@@ -84,15 +84,17 @@ void sniff_check(){
   struct stat file;
   int status;
   int uid = getuid();
-  time_t now = time(0);
-  struct tm * current = gmtime(&now);
+  time_t now = time(NULL);
+  struct tm * current = localtime(&now);
   int last_min = current->tm_min;   
   status = stat("sniff", &file);
-  int last_mod = (gmtime(&file.st_mtime))->tm_min;
-  cout << "last_mod" << last_mod << endl; 
-  cout << "last_min" << last_min << endl;
-  cout << "last change " << (last_mod - last_min)  << endl; 
-  cout << "last change w/o /6 " << (last_mod - last_min) << endl;
+  int last_mod = (localtime(&file.st_mtime))->tm_min;
+  int last_day = current->tm_mday; 
+  int last_mod_day = (localtime(&file.st_mtime))->tm_mday; 
+  //cout << "last_mod" << last_mod << endl; 
+  //cout << "last_min" << last_min << endl;
+  //cout << "last change " << (last_mod - last_min)  << endl; 
+  //cout << "last change w/o /6 " << (last_mod - last_min) << endl;
   if(status == -1){
       cerr << "file does not exsist" << endl;
       exit(EXIT_FAILURE);
@@ -105,15 +107,17 @@ void sniff_check(){
           exit(EXIT_FAILURE);
       }//users access if
       //anyone else can own or do anything else themselves
-      else if((file.st_mode & S_IRWXO) || (file.st_mode & S_IWOTH) || (file.st_mode & S_IXOTH) || (file.st_mode & S_IROTH) ){
+      else if( ( (file.st_mode & S_IRWXO) || (file.st_mode & S_IWOTH) || (file.st_mode & S_IXOTH) || (file.st_mode & S_IROTH) ) ){
         cerr << "others have access to this file" << endl;
         exit(EXIT_FAILURE);
 
       } 
       //check edits in the last minute
       else if ( ((last_min - last_mod) == 1) || ((last_min - last_mod) == 0) || ((last_min - last_mod) == -1) ){
-		cerr << "file was modified a minute ago" << endl; 
-		exit(EXIT_FAILURE);  
+		if(last_mod_day == last_day){
+			cerr << "file was modified a minute ago" << endl; 
+			exit(EXIT_FAILURE); 
+		} 
       } 	
 	//check last time modified
      }//end of others if
@@ -130,7 +134,7 @@ void ownership_change(){
 
 	
   char* ep[] = {"Path= ...", "SHELL=/bin/sh", "SHELL=/bin/bash", "BASH=/bin/bash","IFS=\t\n", NULL};
-  char* av[] = {"chown","root:root","sniff", NULL};
+  char* av[] = {"chown","root:proj","sniff", NULL};
   int status = execve("/usr/bin/chown", av, ep);
   if(status < 0){
 	cerr << "could not change root to owner " << endl;
